@@ -22,17 +22,39 @@ namespace Pseudo_3D_Maze
 
         public void LeftTurn()
         {
-            GazeDirection++;
-            if ((int)GazeDirection == 4)
+            if (GazeDirection == Dir.Down)
             {
                 GazeDirection = Dir.Left;
+            }
+            else if(GazeDirection == Dir.Left)
+            {
+                GazeDirection = Dir.Up;
+            }
+            else if (GazeDirection == Dir.Up)
+            {
+                GazeDirection = Dir.Right;
+            }
+            else if(GazeDirection == Dir.Right)
+            {
+                GazeDirection = Dir.Down;
             }
         }
 
         public void RightTurn()
         {
-            GazeDirection--;
-            if ((int)GazeDirection == -1)
+            if (GazeDirection == Dir.Down)
+            {
+                GazeDirection = Dir.Right;
+            }
+            else if (GazeDirection == Dir.Right)
+            {
+                GazeDirection = Dir.Up;
+            }
+            else if (GazeDirection == Dir.Up)
+            {
+                GazeDirection = Dir.Left;
+            }
+            else if (GazeDirection == Dir.Left)
             {
                 GazeDirection = Dir.Down;
             }

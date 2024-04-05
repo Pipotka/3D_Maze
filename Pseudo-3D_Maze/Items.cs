@@ -10,8 +10,11 @@ namespace Pseudo_3D_Maze
     {
         Road = 0,
         Wall = 1,
-        StrongWall = 2,
+        SideStrongWall = 2,
+        TopStrongWall = 3,
+        BottomStrongWall = 4,
         Finish = 101,
-        Player = -101
+        Player = -101,
+        Void = 5
     }
 }

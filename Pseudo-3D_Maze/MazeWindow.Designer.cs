@@ -30,8 +30,6 @@
         {
             components = new System.ComponentModel.Container();
             FrameTimer = new System.Windows.Forms.Timer(components);
-            MiniMap = new PictureBox();
-            ((System.ComponentModel.ISupportInitialize)MiniMap).BeginInit();
             SuspendLayout();
             // 
             // FrameTimer
@@ -39,32 +37,20 @@
             FrameTimer.Interval = 14;
             FrameTimer.Tick += FrameTimerTick;
             // 
-            // MiniMap
-            // 
-            MiniMap.BackColor = SystemColors.ActiveCaptionText;
-            MiniMap.Location = new Point(0, 0);
-            MiniMap.Name = "MiniMap";
-            MiniMap.Size = new Size(150, 150);
-            MiniMap.TabIndex = 0;
-            MiniMap.TabStop = false;
-            // 
             // MazeWindow
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
-            Controls.Add(MiniMap);
             FormBorderStyle = FormBorderStyle.None;
             Name = "MazeWindow";
             WindowState = FormWindowState.Maximized;
             KeyDown += MazeWindowKeyDown;
-            ((System.ComponentModel.ISupportInitialize)MiniMap).EndInit();
             ResumeLayout(false);
         }
 
         #endregion
 
         private System.Windows.Forms.Timer FrameTimer;
-        private PictureBox MiniMap;
     }
 }

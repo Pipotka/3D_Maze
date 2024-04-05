@@ -12,33 +12,39 @@ namespace Pseudo_3D_Maze
     {
         private int[,] maze;
         private int noGoZone;
-        private int mazeHeight;
-        private int mazeWidth;
+        public int Height { get; }
+        public int Width { get; }
+        private Point positionOfFinish;
 
         public Maze(int mazeHeight, int mazeWidth)
         {
-            maze = new int[mazeHeight, mazeWidth];
-            noGoZone = 4;
-            this.mazeHeight = mazeHeight;
-            this.mazeWidth = mazeWidth;
+            noGoZone = 2;
+            maze = new int[mazeHeight + noGoZone * 2, mazeWidth + noGoZone * 2];
+            this.Height = mazeHeight + noGoZone * 2;
+            this.Width = mazeWidth + noGoZone * 2;
         }
 
-        public int GetMazeElement(int i, int j)
+        public Items GetMazeCell(int x, int y)
         {
-            return maze[i, j];
+            if (((x >= 0) && (x < Width))  && ((y >= 0) && (y < Height)))
+            {
+                return (Items)maze[y, x];
+            }
+            else
+            {
+                return Items.Void;
+            }
         }
 
         public void FillMaze()
         {
             FillWalls();
             Random rand = new Random();
-            int i = rand.Next(noGoZone / 2, mazeHeight - noGoZone / 2);
-            int j = rand.Next(noGoZone / 2, mazeWidth - noGoZone / 2);
+            int i = rand.Next(noGoZone, Height - noGoZone);
+            int j = rand.Next(noGoZone, Width - noGoZone);
             List<Point> ListOfAvailableWalls = new List<Point>();
-
             maze[i, j] = 0;
             InList(ListOfAvailableWalls, i, j);
-
             while (ListOfAvailableWalls.Count != 0)
             {
                 int RandWall;
@@ -54,24 +60,38 @@ namespace Pseudo_3D_Maze
 
                 ListOfAvailableWalls.RemoveAt(RandWall);
             }
-
             SetPlayer();
             SetFinish();
         }
 
         private void FillWalls()
         {
-            for (int i = 0; i < mazeHeight; i++)
+            for (int i = 0; i < Height; i++)
             {
-                for (int j = 0; j < mazeWidth; j++)
+                for (int j = 0; j < Width; j++)
                 {
                     if (NotOutMaze(i, j))
                     {
-                        maze[i, j] = 1;
+                        maze[i, j] = (int)Items.Wall;
+                    }
+                    else if (((i == 1 || i == Height - noGoZone) || (j == 1 || j == Width - noGoZone)))
+                    {
+                        if ((i == 1) && ((j > 0) && (j < Width - 1)))
+                        {
+                            maze[i, j] = (int)Items.TopStrongWall;
+                        }
+                        else if ((i == Height - noGoZone) && ((j > 0) && (j < Width - 1)))
+                        {
+                            maze[i, j] = (int)Items.BottomStrongWall;
+                        }
+                        else
+                        {
+                            maze[i, j] = (int)Items.SideStrongWall;
+                        }
                     }
                     else
                     {
-                        maze[i, j] = 2;
+                        maze[i, j] = (int)Items.SideStrongWall;
                     }
                 }
             }
@@ -179,9 +199,9 @@ namespace Pseudo_3D_Maze
             }
         }
 
-        private bool NotOutMaze(int i, int j)
+        public bool NotOutMaze(int i, int j)
         {
-            if (!((i < noGoZone / 2 || i >= mazeHeight - noGoZone / 2) || (j < noGoZone / 2 || j >= mazeWidth - noGoZone / 2)))
+            if (!((i < noGoZone || i >= Height - noGoZone) || (j < noGoZone || j >= Width - noGoZone)))
             {
                 return true;
             }
@@ -393,14 +413,15 @@ namespace Pseudo_3D_Maze
 
         private void SetFinish()
         {
-            int i = mazeHeight - 2;
-            int j = mazeWidth - 2;
+            int i = Height - 2;
+            int j = Width - 2;
 
             for (; i > 1; i--)
             {
                 if (maze[i, j - 1] == 0)
                 {
                     maze[i, j] = (int)Items.Finish;
+                    positionOfFinish = new Point(j, i);
                     break;
                 }
             }
@@ -410,11 +431,11 @@ namespace Pseudo_3D_Maze
         {
             Point currentPlayerPosition = new Point();
             bool isFoundPlayer = false;
-            for (int row = noGoZone / 2; row < mazeHeight; row++)
+            for (int row = noGoZone; row < Height; row++)
             {
                 if (!isFoundPlayer)
                 {
-                    for (int column = noGoZone / 2; column < mazeWidth; column++)
+                    for (int column = noGoZone; column < Width; column++)
                     {
                         if (maze[row, column] == (int)Items.Player)
                         {
@@ -431,6 +452,13 @@ namespace Pseudo_3D_Maze
                 }
             }
             return currentPlayerPosition;
+        }
+
+        public void SetPlayerPosition(int x, int y)
+        {
+            var playerCell = GetPlayerPosition();
+            maze[playerCell.Y, playerCell.X] = (int)Items.Road;
+            maze[y, x] = (int)Items.Player;
         }
 
         public Dir GetStartPlayerGazeDirection()
@@ -453,22 +481,24 @@ namespace Pseudo_3D_Maze
             {
                 case 1:
                     return Dir.Up;
-                    break;
 
                 case 2:
-                    return Dir.Left;
-                    break;
+                    return Dir.Right;
 
                 case 3:
-                    return Dir.Right;
-                    break;
+                    return Dir.Left;
 
                 case 4:
                     return Dir.Down;
-                    break;
+
                 default:
                     return Dir.None;
             }
+        }
+
+        public Point GetPositionOfFinish()
+        {
+            return positionOfFinish;
         }
     }
 }
