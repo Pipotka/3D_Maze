@@ -9,55 +9,22 @@ namespace Pseudo_3D_Maze
 {
     struct Player
     {
-        public Point Position;
-        public Dir GazeDirection;
+        public float X;
+        public float Y;
+        public float A;
+        public float Speed;
+        public float ViewingAngle; // FOV
+        public float ViewingDistance; // Depth
 
         public Player(Maze maze)
         {
-            Position = new Point();
-            Position = maze.GetPlayerPosition();
-            GazeDirection = new Dir();
-            GazeDirection = maze.GetStartPlayerGazeDirection();
-        }
-
-        public void LeftTurn()
-        {
-            if (GazeDirection == Dir.Down)
-            {
-                GazeDirection = Dir.Left;
-            }
-            else if(GazeDirection == Dir.Left)
-            {
-                GazeDirection = Dir.Up;
-            }
-            else if (GazeDirection == Dir.Up)
-            {
-                GazeDirection = Dir.Right;
-            }
-            else if(GazeDirection == Dir.Right)
-            {
-                GazeDirection = Dir.Down;
-            }
-        }
-
-        public void RightTurn()
-        {
-            if (GazeDirection == Dir.Down)
-            {
-                GazeDirection = Dir.Right;
-            }
-            else if (GazeDirection == Dir.Right)
-            {
-                GazeDirection = Dir.Up;
-            }
-            else if (GazeDirection == Dir.Up)
-            {
-                GazeDirection = Dir.Left;
-            }
-            else if (GazeDirection == Dir.Left)
-            {
-                GazeDirection = Dir.Down;
-            }
+            Point Position = maze.GetPlayerPosition();
+            A = 0.0f;
+            X = (float)Position.X;
+            Y = (float)Position.Y;
+            ViewingAngle = 3.14159f / 3;
+            ViewingDistance = 30.0f;
+            Speed = 5.0f;
         }
     }
 }

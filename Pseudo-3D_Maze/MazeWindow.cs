@@ -1,14 +1,22 @@
 ﻿using Microsoft.VisualBasic;
 using System;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Windows.Forms.VisualStyles;
+using System.Threading;
+using System.Windows.Forms;
+using System.Drawing;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Pseudo_3D_Maze
 {
     public partial class MazeWindow : Form
     {
-        private Size screenSize = new Size(System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width, System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height);
+        private Size screenSize = new Size(System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width,
+            System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height);
         private Maze maze;
         private bool isGameEnd = false;
         private Player player;
@@ -21,9 +29,13 @@ namespace Pseudo_3D_Maze
         private int xMiniMapOffset;
         private int miniMapElementHeight;
         private int miniMapElementWidth;
+        private bool isPlayerActing = true;
         private Pen miniMapBorderColor = new Pen(Color.Gold, 4);
         private Point [] trianglePoints = new Point[3];
-        private VisiblePartOfMaze visiblePartOfMaze;
+        private SolidBrush[] brushes; 
+        private DateTime tp1;
+        private DateTime tp2;
+        TimeSpan elapsedTime;
 
 
         public MazeWindow()
@@ -32,8 +44,8 @@ namespace Pseudo_3D_Maze
             graphic = CreateGraphics();
             var miniMapSize = 450;
             buffer = BufferedGraphicsManager.Current.Allocate(this.CreateGraphics(), this.DisplayRectangle);
-            bool isCorrectInput = false;
-            int mazeHeight = 0;
+            var isCorrectInput = false;
+            var mazeHeight = 0;
             while (!isCorrectInput)
             {
                 if (int.TryParse(Interaction.InputBox($"Введите длину лабиринта, которая не должна превышать {miniMapSize / 2}:", "Окно ввода длиный лабиринта"), out mazeHeight))
@@ -45,7 +57,7 @@ namespace Pseudo_3D_Maze
                 }
             }
             isCorrectInput = false;
-            int mazeWidth = 0;
+            var mazeWidth = 0;
             while (!isCorrectInput)
             {
                 if (int.TryParse(Interaction.InputBox($"Введите ширину лабиринта, которая не должна превышать {miniMapSize / 2}:", "Окно ввода ширины лабиринта"), out mazeWidth))
@@ -58,38 +70,38 @@ namespace Pseudo_3D_Maze
             }
             yMiniMapOffset = miniMapSize % mazeHeight;
             xMiniMapOffset = miniMapSize % mazeWidth;
-            miniMapElementHeight = miniMapSize / mazeHeight; //- 1;
-            miniMapElementWidth = miniMapSize / mazeWidth; //- 1;
+            miniMapElementHeight = miniMapSize / mazeHeight;
+            miniMapElementWidth = miniMapSize / mazeWidth;
             maze = new Maze(mazeHeight, mazeWidth);
             maze.FillMaze();
             player = new Player(maze);
             miniMapBorder = new Rectangle(0, 0, miniMapSize, miniMapSize);
-            player.GazeDirection = maze.GetStartPlayerGazeDirection();
-            visiblePartOfMaze = new VisiblePartOfMaze(4, 3);
-            //Cursor.Hide();
-
+            tp1 = DateTime.Now;
+            tp2 = DateTime.Now;
+            brushes = new SolidBrush [5];
+            brushes[0] = new SolidBrush (Color.White);
+            brushes[1] = new SolidBrush (Color.LightGray);
+            brushes[2] = new SolidBrush(Color.Gray);
+            brushes[3] = new SolidBrush(Color.DarkGray);
+            brushes[4] = new SolidBrush(Color.DarkGray);
+            Cursor.Hide();
             FrameTimer.Start();
         }
 
         private void FrameTimerTick(object sender, EventArgs e)
         {
-            buffer.Graphics.Clear(Color.DarkBlue);
-
-            DrawMiniMap();
-            buffer.Render();
-            if (!isGameEnd)
+            tp2 = DateTime.Now;
+            elapsedTime = tp2 - tp1;
+            tp1 = tp2;
+            if (isPlayerActing)
             {
-                if (player.Position == maze.GetPositionOfFinish())
-                {
-                    isGameEnd = true;
-                }
-                //if (isPlayerMoving || isChangingPlayerGazeDirection)
-                //{
-                //    //перерисовка карты и лабиринта
-                //    //проверка закончил ли игрок игру
-                //}
+                buffer.Graphics.Clear(Color.Black);
+                DrawVisiblePartOfMaze();
+                DrawMiniMap();
+                buffer.Render();
+                isPlayerActing = false;
             }
-            else
+            if (isGameEnd)
             {
                 FrameTimer.Stop();
                 MessageBox.Show("Вы выбрались из лабиринта!",
@@ -104,78 +116,74 @@ namespace Pseudo_3D_Maze
         {
             if (!isGameEnd)
             {
+                var ElapsedTime = (float)elapsedTime.TotalSeconds;
                 switch (e.KeyCode)
                 {
                     case Keys.Up:
-                        PlayerMoveForward();
-                        visiblePartOfMaze.ChangeVisiblePartOfMaze(maze, player);
+                        MoveForward(ElapsedTime);
+                        isPlayerActing = true;
+                        if ((maze.GetPositionOfFinish().X == (int)player.X) && (maze.GetPositionOfFinish().Y == (int)player.Y))
+                        {
+                            isGameEnd = true;
+                        }
                         break;
 
                     case Keys.Down:
-                        PlayerMoveBackward();
-                        visiblePartOfMaze.ChangeVisiblePartOfMaze(maze, player);
+                        MoveBackward(ElapsedTime);
+                        isPlayerActing = true;
+                        if ((maze.GetPositionOfFinish().X == (int)player.X) && (maze.GetPositionOfFinish().Y == (int)player.Y))
+                        {
+                            isGameEnd = true;
+                        }
                         break;
 
                     case Keys.Left:
-                        player.LeftTurn();
-                        visiblePartOfMaze.ChangeVisiblePartOfMaze(maze, player);
+                        LeftTurn(ElapsedTime);
+                        isPlayerActing = true;
                         break;
 
                     case Keys.Right:
-                        player.RightTurn();
-                        visiblePartOfMaze.ChangeVisiblePartOfMaze(maze, player);
+                        RightTurn(ElapsedTime);
+                        isPlayerActing = true;
                         break;
                 }
             }
         }
 
-        private void PlayerMoveForward()
+        private void MoveForward(float elapsedTime)
         {
-            if ((player.GazeDirection == Dir.Left) && (!isWall(player.Position.X + 1, player.Position.Y)))
+            player.X += MathF.Sin(player.A) * player.Speed * elapsedTime;
+            player.Y += MathF.Cos(player.A) * player.Speed * elapsedTime;
+            if (isWall((int)player.X, (int)player.Y))
             {
-                maze.SetPlayerPosition(player.Position.X + 1, player.Position.Y);
-                player.Position.X++;
+                player.X -= MathF.Sin(player.A) * player.Speed * elapsedTime;
+                player.Y -= MathF.Cos(player.A) * player.Speed * elapsedTime;
             }
-            else if(player.GazeDirection == Dir.Right && (!isWall(player.Position.X - 1, player.Position.Y)))
-            {
-                maze.SetPlayerPosition(player.Position.X - 1, player.Position.Y);
-                player.Position.X--;
-            }
-            else if(player.GazeDirection == Dir.Down && (!isWall(player.Position.X, player.Position.Y + 1)))
-            {
-                maze.SetPlayerPosition(player.Position.X, player.Position.Y + 1);
-                player.Position.Y++;
-            }
-            else if(player.GazeDirection == Dir.Up && (!isWall(player.Position.X, player.Position.Y - 1)))
-            {
-                maze.SetPlayerPosition(player.Position.X, player.Position.Y - 1);
-                player.Position.Y--;
-            }
+            maze.SetPlayerPosition((int)player.X, (int)player.Y);
         }
 
-        private void PlayerMoveBackward()
+        private void MoveBackward(float elapsedTime)
         {
-            if ((player.GazeDirection == Dir.Left) && (!isWall(player.Position.X - 1, player.Position.Y)))
+            player.X -= MathF.Sin(player.A) * player.Speed * elapsedTime;
+            player.Y -= MathF.Cos(player.A) * player.Speed * elapsedTime;
+            if (isWall((int)player.X, (int)player.Y))
             {
-                maze.SetPlayerPosition(player.Position.X - 1, player.Position.Y);
-                player.Position.X--;
+                player.X += MathF.Sin(player.A) * player.Speed * elapsedTime;
+                player.Y += MathF.Cos(player.A) * player.Speed * elapsedTime;
             }
-            else if (player.GazeDirection == Dir.Right && (!isWall(player.Position.X + 1, player.Position.Y)))
-            {
-                maze.SetPlayerPosition(player.Position.X + 1, player.Position.Y);
-                player.Position.X++;
-            }
-            else if (player.GazeDirection == Dir.Down && (!isWall(player.Position.X, player.Position.Y - 1)))
-            {
-                maze.SetPlayerPosition(player.Position.X, player.Position.Y - 1);
-                player.Position.Y--;
-            }
-            else if (player.GazeDirection == Dir.Up && (!isWall(player.Position.X, player.Position.Y + 1)))
-            {
-                maze.SetPlayerPosition(player.Position.X, player.Position.Y + 1);
-                player.Position.Y++;
-            }
+            maze.SetPlayerPosition((int)player.X, (int)player.Y);
         }
+
+        private void LeftTurn(float elapsedTime)
+        {
+            player.A -= (player.Speed * 0.75f) * elapsedTime;
+        }
+
+        private void RightTurn(float elapsedTime)
+        {
+            player.A += (player.Speed * 0.75f) * elapsedTime;
+        }
+        
         private bool isWall(int x, int y)
         {
             if ((maze.GetMazeCell( x, y) == Items.Wall) 
@@ -195,18 +203,12 @@ namespace Pseudo_3D_Maze
         {
             buffer.Graphics.FillRectangle(Brushes.Black, miniMapBorder);
             buffer.Graphics.DrawRectangle(miniMapBorderColor, miniMapBorder.Location.X - 1, miniMapBorder.Location.Y - 1, miniMapBorder.Width + 1, miniMapBorder.Height + 1);
-            for (int indexRowOfMiniMapElement = -1, mazeRow = 1; indexRowOfMiniMapElement < maze.Height; indexRowOfMiniMapElement++, mazeRow++)
+            for (int indexRowOfMiniMapElement = 0, mazeRow = 2; mazeRow < maze.Height - 2; indexRowOfMiniMapElement++, mazeRow++)
             {
-                if (mazeRow < maze.Height - 1)
-                {
-                    for (int indexColOfMiniMapElement = -1, mazeCol = 1; indexColOfMiniMapElement < maze.Width; indexColOfMiniMapElement++, mazeCol++)
+                    for (int indexColOfMiniMapElement = 0, mazeCol = 2; mazeCol < maze.Width - 2; indexColOfMiniMapElement++, mazeCol++)
                     {
-                        if (mazeCol < maze.Width - 1)
-                        {
-                            DrawMiniMapElement(maze.GetMazeCell(mazeCol, mazeRow), (indexColOfMiniMapElement * miniMapElementWidth) - (xMiniMapOffset / 2), (indexRowOfMiniMapElement * miniMapElementHeight) - (yMiniMapOffset / 2));
-                        }
+                        DrawMiniMapElement(maze.GetMazeCell(mazeCol, mazeRow), (indexColOfMiniMapElement * miniMapElementWidth) - (xMiniMapOffset / 2), (indexRowOfMiniMapElement * miniMapElementHeight) - (yMiniMapOffset / 2));
                     }
-                }
             }
         }
 
@@ -260,79 +262,83 @@ namespace Pseudo_3D_Maze
 
         private void DrawVisiblePartOfMaze()
         {
-            for (int row = visiblePartOfMaze.size.Height - 1; row >= 0; row--)
-            {
-                for (int col = 0; col < visiblePartOfMaze.size.Width; col++)
+           for (int xPositionOnScreen = 0; xPositionOnScreen < screenSize.Width; xPositionOnScreen++)
+           {
+                float rayAngle = (player.A - player.ViewingAngle / 2.0f) + ((float)xPositionOnScreen / (float)screenSize.Width) * player.ViewingAngle;
+                var distanceToWall = 0.0f;
+                var hitWall = false;
+                var boundary = false;
+                var eyeX = MathF.Sin(rayAngle);
+                var eyeY = MathF.Cos(rayAngle);
+                while (!hitWall && distanceToWall < player.ViewingDistance)
                 {
-                    if ((visiblePartOfMaze.visiblePartOfMaze[row, col] == (int)Items.Wall)
-                    || (visiblePartOfMaze.visiblePartOfMaze[row, col] == (int)Items.SideStrongWall)
-                    || (visiblePartOfMaze.visiblePartOfMaze[row, col] == (int)Items.TopStrongWall)
-                    || (visiblePartOfMaze.visiblePartOfMaze[row, col] == (int)Items.BottomStrongWall))
+                    distanceToWall += 0.1f;
+                    var testX = (int)(player.X + eyeX * distanceToWall);
+                    var testY = (int)(player.Y + eyeY * distanceToWall);
+                    if (testX < 0 || testX >= maze.Width ||  testY < 0 || testY >= maze.Height)
                     {
-                        switch (col)
+                        hitWall = true;
+                        distanceToWall = player.ViewingDistance;
+                    }
+                    else
+                    {
+                        if (isWall(testX, testY))
                         {
-
+                            hitWall = true;
+                            List<(float, float)> p = new List<(float, float)>();
+                            for (int tx = 0; tx < 2; tx++)
+                            {
+                                for (int ty = 0; ty < 2; ty++)
+                                {
+                                    float vx = testX + tx - player.X;
+                                    float vy = testY + ty - player.Y;
+                                    var d = MathF.Sqrt(vx * vx + vy * vy);
+                                    float dot = (eyeX * vx / d) + (eyeY * vy / d);
+                                    p.Add((d, dot));
+                                }
+                            }
+                            p.Sort((left, right) => left.Item1.CompareTo(right.Item1));
+                            var bound = 0.005f;
+                            if (Math.Acos(p[0].Item2) < bound || Math.Acos(p[1].Item2) < bound)
+                            {
+                                boundary = true;
+                            }
                         }
-
                     }
                 }
+                var ceiling = (int)((float)(screenSize.Height / 2.0) - screenSize.Height / ((float)distanceToWall)); // Остановился здесь
+                var floor = screenSize.Height - ceiling;
+                var drawingHeight = floor - ceiling;
+                int shade;
+                if (distanceToWall <= player.ViewingDistance / 6.0f)
+                {
+                    shade = 0; // first element of the brushes array
+                }
+                else if (distanceToWall < player.ViewingDistance / 5.5f)
+                {
+                    shade = 1; // second element of the brushes array
+                }
+                else if (distanceToWall < player.ViewingDistance / 3.0f)
+                {
+                    shade = 2; // third element of the brushes array
+                }
+                else if (distanceToWall < player.ViewingDistance)
+                {
+                    shade = 3; // fourth element of the brushes array
+                }
+                else
+                {
+                    shade = brushes.Length; // the wall will not be rendered
+                }
+                if (boundary)
+                {
+                    shade = 4;// The fourth element of the brushes array is the color of the edge
+                }
+                if (shade != brushes.Length)
+                {
+                    buffer.Graphics.FillRectangle(brushes[shade], xPositionOnScreen, ceiling, 1, drawingHeight);
+                }
             }
-        }
-
-        private void DrawWall(Point[] trapezoidPoints)
-        {
-
-            // //int playerRow, int playerCol)
-            //// Позиция текущего элемента относительно игрока
-            //int offsetX = col - player.Position.X;
-            //int offsetY = row - playerRow;
-
-            //// Предположим, что cellSize - это размер клетки, и playerX, playerY - позиция игрока на экране
-            //int x = playerX + offsetX * cellSize;
-            //int y = playerY + offsetY * cellSize;
-
-            //// Проверяем, что текущая клетка находится в пределах видимой области экрана
-            //if (x >= 0 && x < screenWidth && y >= 0 && y < screenHeight)
-            //{
-            //    // В зависимости от типа элемента рисуем соответствующую текстуру или просто закрашиваем цветом
-            //    switch (visiblePartOfMaze.cells[row, col])
-            //    {
-            //        case CellType.Wall:
-            //            // Отрисовка стены с учетом перспективы
-            //            DrawPerspectiveWall(x, y);
-            //            break;
-            //        case CellType.Road:
-            //            // Отрисовка дороги
-            //            DrawRoad(x, y);
-            //            break;
-            //        // Добавьте обработку других типов элементов, если это необходимо
-            //        default:
-            //            // По умолчанию закрашиваем какой-то цветом
-            //            DrawDefault(x, y);
-            //            break;
-            //    }
-            //}
-
-            //private void DrawPerspectiveWall(int x, int y)
-            //{
-            //    // Логика отрисовки стены с учетом перспективы
-            //}
-
-            //private void DrawRoad(int x, int y)
-            //{
-            //    // Логика отрисовки дороги
-            //}
-
-            //private void DrawDefault(int x, int y)
-            //{
-            //    // Логика отрисовки для остальных типов элементов
-            //}
-
-        }
-
-        private void DrawRectangle(Point[] rectanglePoints)
-        {
-
         }
     }
 }
