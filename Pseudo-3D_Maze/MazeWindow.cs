@@ -15,20 +15,15 @@ namespace Pseudo_3D_Maze
 {
     public partial class MazeWindow : Form
     {
-        private Size screenSize = new Size(System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width,
-            System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height);
+        private Size screenSize = new Size(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
         private Maze maze;
         private bool isGameEnd = false;
         private Player player;
-        private Graphics graphic;
         private BufferedGraphics buffer;
-        private bool isPlayerMoving = false;
-        private bool isChangingPlayerGazeDirection = false;
         private Rectangle miniMapBorder;
-        private int yMiniMapOffset;
-        private int xMiniMapOffset;
         private int miniMapElementHeight;
         private int miniMapElementWidth;
+        private bool isDifficultMap;
         private bool isPlayerActing = true;
         private Pen miniMapBorderColor = new Pen(Color.Gold, 4);
         private Point [] trianglePoints = new Point[3];
@@ -41,41 +36,44 @@ namespace Pseudo_3D_Maze
         public MazeWindow()
         {
             InitializeComponent();
-            graphic = CreateGraphics();
-            var miniMapSize = 450;
             buffer = BufferedGraphicsManager.Current.Allocate(this.CreateGraphics(), this.DisplayRectangle);
             var isCorrectInput = false;
             var mazeHeight = 0;
             while (!isCorrectInput)
             {
-                if (int.TryParse(Interaction.InputBox($"Введите длину лабиринта, которая не должна превышать {miniMapSize / 2}:", "Окно ввода длиный лабиринта"), out mazeHeight))
+                if (int.TryParse(Interaction.InputBox("Введите длину лабиринта:", "Окно ввода длиный лабиринта"), out mazeHeight))
                 {
-                    if (mazeHeight <= miniMapSize / 2)
-                    {
                         isCorrectInput = true;
-                    }
                 }
             }
             isCorrectInput = false;
             var mazeWidth = 0;
             while (!isCorrectInput)
             {
-                if (int.TryParse(Interaction.InputBox($"Введите ширину лабиринта, которая не должна превышать {miniMapSize / 2}:", "Окно ввода ширины лабиринта"), out mazeWidth))
+                if (int.TryParse(Interaction.InputBox("Введите ширину лабиринта:", "Окно ввода ширины лабиринта"), out mazeWidth))
                 {
-                    if (mazeWidth <= miniMapSize / 2)
-                    {
                         isCorrectInput = true;
-                    }
                 }
             }
-            yMiniMapOffset = miniMapSize % mazeHeight;
-            xMiniMapOffset = miniMapSize % mazeWidth;
-            miniMapElementHeight = miniMapSize / mazeHeight;
-            miniMapElementWidth = miniMapSize / mazeWidth;
+            Size miniMapSize = new Size(450, 450);
+            var yMiniMapOffset = miniMapSize.Height % mazeHeight;
+            var xMiniMapOffset = miniMapSize.Width % mazeWidth;
+            if ((mazeHeight == mazeWidth) && ((yMiniMapOffset == 0) && (xMiniMapOffset == 0)))
+            {
+                isDifficultMap = false;
+                miniMapElementHeight = miniMapSize.Height / mazeHeight;
+                miniMapElementWidth = miniMapSize.Width / mazeWidth;
+            }
+            else
+            {
+                isDifficultMap = true;
+                miniMapElementHeight = miniMapSize.Height / 10;
+                miniMapElementWidth = miniMapSize.Width / 10;
+            }
             maze = new Maze(mazeHeight, mazeWidth);
             maze.FillMaze();
             player = new Player(maze);
-            miniMapBorder = new Rectangle(0, 0, miniMapSize, miniMapSize);
+            miniMapBorder = new Rectangle(0, 0, miniMapSize.Width, miniMapSize.Height);
             tp1 = DateTime.Now;
             tp2 = DateTime.Now;
             brushes = new SolidBrush [5];
@@ -103,6 +101,7 @@ namespace Pseudo_3D_Maze
             }
             if (isGameEnd)
             {
+                Cursor.Show();
                 FrameTimer.Stop();
                 MessageBox.Show("Вы выбрались из лабиринта!",
                     "Победное окно",
@@ -203,12 +202,31 @@ namespace Pseudo_3D_Maze
         {
             buffer.Graphics.FillRectangle(Brushes.Black, miniMapBorder);
             buffer.Graphics.DrawRectangle(miniMapBorderColor, miniMapBorder.Location.X - 1, miniMapBorder.Location.Y - 1, miniMapBorder.Width + 1, miniMapBorder.Height + 1);
-            for (int indexRowOfMiniMapElement = 0, mazeRow = 2; mazeRow < maze.Height - 2; indexRowOfMiniMapElement++, mazeRow++)
+            if (!isDifficultMap)
             {
-                    for (int indexColOfMiniMapElement = 0, mazeCol = 2; mazeCol < maze.Width - 2; indexColOfMiniMapElement++, mazeCol++)
+                for (int indexRowOfMiniMapElement = 0, mazeRow = 2; mazeRow < maze.Height - 1; indexRowOfMiniMapElement++, mazeRow++)
+                {
+                    for (int indexColOfMiniMapElement = 0, mazeCol = 2; mazeCol < maze.Width - 1; indexColOfMiniMapElement++, mazeCol++)
                     {
-                        DrawMiniMapElement(maze.GetMazeCell(mazeCol, mazeRow), (indexColOfMiniMapElement * miniMapElementWidth) - (xMiniMapOffset / 2), (indexRowOfMiniMapElement * miniMapElementHeight) - (yMiniMapOffset / 2));
+                        DrawMiniMapElement(maze.GetMazeCell(mazeCol, mazeRow), indexColOfMiniMapElement * miniMapElementWidth, indexRowOfMiniMapElement * miniMapElementHeight);
                     }
+                }
+            }
+            else
+            {
+                for (int indexRowOfMiniMapElement = 0, mazeRowRelativeToPlayer = - 4; mazeRowRelativeToPlayer <= 5; indexRowOfMiniMapElement++, mazeRowRelativeToPlayer++)
+                {
+                    if (((int)player.Y + mazeRowRelativeToPlayer >= 1) && ((int)player.Y + mazeRowRelativeToPlayer < maze.Height - 1))
+                    {
+                        for (int indexColOfMiniMapElement = 0, mazeColRelativeToPlayer = -4; mazeColRelativeToPlayer <= 5; mazeColRelativeToPlayer++, indexColOfMiniMapElement++)
+                        {
+                            if (((int)player.X + mazeColRelativeToPlayer >= 1) && ((int)player.X + mazeColRelativeToPlayer < maze.Width - 1))
+                            {
+                                DrawMiniMapElement(maze.GetMazeCell((int)player.X + mazeColRelativeToPlayer, (int)player.Y + mazeRowRelativeToPlayer), indexColOfMiniMapElement * miniMapElementWidth, indexRowOfMiniMapElement * miniMapElementHeight);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -234,17 +252,20 @@ namespace Pseudo_3D_Maze
                 buffer.Graphics.FillPolygon(Brushes.Yellow, trianglePoints);
                 buffer.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
             }
-            else if (cell == Items.TopStrongWall)
+            else if ((cell == Items.TopStrongWall) && (isDifficultMap))
             {
-                //buffer.Graphics.FillRectangle(Brushes.Coral, x, y, miniMapElementWidth, miniMapElementHeight);
+                buffer.Graphics.FillRectangle(Brushes.Orange, x, y, miniMapElementWidth, miniMapElementHeight);
             }
-            else if (cell == Items.BottomStrongWall)
+            else if ((cell == Items.BottomStrongWall)&& (isDifficultMap))
             {
-                //buffer.Graphics.FillRectangle(Brushes.Coral, x, y, miniMapElementWidth, miniMapElementHeight);
+                buffer.Graphics.FillRectangle(Brushes.Orange, x, y, miniMapElementWidth, miniMapElementHeight);
             }
             else if (cell == Items.Finish)
             {
-                x = x - miniMapElementWidth;
+                if (!isDifficultMap)
+                {
+                    x = x - miniMapElementWidth;
+                }
                 if (miniMapElementHeight > miniMapElementWidth)
                 {
                     buffer.Graphics.FillEllipse(Brushes.Red, x, y, miniMapElementWidth, miniMapElementWidth);
@@ -254,9 +275,9 @@ namespace Pseudo_3D_Maze
                     buffer.Graphics.FillEllipse(Brushes.Red, x, y, miniMapElementHeight, miniMapElementHeight);
                 }
             }
-            else
+            else if ((cell == Items.SideStrongWall) && (isDifficultMap))
             {
-                //buffer.Graphics.FillRectangle(Brushes.Coral, x, y, miniMapElementWidth, miniMapElementHeight);
+                buffer.Graphics.FillRectangle(Brushes.Orange, x, y, miniMapElementWidth, miniMapElementHeight);
             }
         }
 
@@ -306,7 +327,7 @@ namespace Pseudo_3D_Maze
                         }
                     }
                 }
-                var ceiling = (int)((float)(screenSize.Height / 2.0) - screenSize.Height / ((float)distanceToWall)); // Остановился здесь
+                var ceiling = (int)((float)(screenSize.Height / 2.0) - screenSize.Height / ((float)distanceToWall));
                 var floor = screenSize.Height - ceiling;
                 var drawingHeight = floor - ceiling;
                 int shade;
@@ -314,7 +335,7 @@ namespace Pseudo_3D_Maze
                 {
                     shade = 0; // first element of the brushes array
                 }
-                else if (distanceToWall < player.ViewingDistance / 5.5f)
+                else if (distanceToWall < player.ViewingDistance / 5.0f)
                 {
                     shade = 1; // second element of the brushes array
                 }
